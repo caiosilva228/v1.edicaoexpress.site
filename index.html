@@ -142,7 +142,7 @@ Error generating stack: `+l.message+`
   </script>
   
   <!-- TRAQUEAMENTO CLOUDFLARE -->
-  <script>
+<script>
 (function () {
   const TRACK_ENDPOINT = "https://track.api.edicaoexpress.site";
 
@@ -162,20 +162,24 @@ Error generating stack: `+l.message+`
     return new URLSearchParams(window.location.search).get(name);
   }
 
-  function generateExternalId() {
-    if (crypto.randomUUID) {
-      return "ext_" + crypto.randomUUID().replace(/-/g, "");
+  function uuidNoDash() {
+    if (window.crypto && crypto.randomUUID) {
+      return crypto.randomUUID().replace(/-/g, "");
     }
-    return "ext_" + Math.random().toString(36).slice(2) + Date.now();
+    return Math.random().toString(36).slice(2) + Date.now();
+  }
+
+  function generateExternalId() {
+    return "ext_" + uuidNoDash();
   }
 
   function getOrCreateExternalId() {
-    let id = localStorage.getItem("external_id");
-    if (!id) {
-      id = generateExternalId();
-      localStorage.setItem("external_id", id);
+    let externalId = localStorage.getItem("external_id");
+    if (!externalId) {
+      externalId = generateExternalId();
+      localStorage.setItem("external_id", externalId);
     }
-    return id;
+    return externalId;
   }
 
   function getOrCreateFbc() {
@@ -190,12 +194,16 @@ Error generating stack: `+l.message+`
     return fbc;
   }
 
-  function buildPayload(eventName) {
+  function generateEventId(eventName) {
+    return `${eventName.toLowerCase()}_${uuidNoDash()}`;
+  }
+
+  function buildPayload(eventName, eventId) {
     const externalId = getOrCreateExternalId();
 
     return {
       event_name: eventName,
-      event_id: externalId + "_" + eventName,
+      event_id: eventId,
       external_id: externalId,
       sck: externalId,
       fbp: getCookie("_fbp"),
@@ -212,20 +220,28 @@ Error generating stack: `+l.message+`
   }
 
   async function sendEvent(eventName) {
-    const payload = buildPayload(eventName);
+    const eventId = generateEventId(eventName);
+    const payload = buildPayload(eventName, eventId);
 
-    // ENVIA PRO SEU BACKEND
+    // trava anti-duplicação no browser
+    window.__TRACK_SENT_EVENTS__ = window.__TRACK_SENT_EVENTS__ || new Set();
+    if (window.__TRACK_SENT_EVENTS__.has(payload.event_id)) {
+      return;
+    }
+    window.__TRACK_SENT_EVENTS__.add(payload.event_id);
+
+    // envia pro backend
     fetch(TRACK_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify(payload)
-    });
+    }).catch(console.error);
 
-    // ENVIA PRO PIXEL (DEDUPE)
+    // envia pro pixel com o MESMO eventID
     if (typeof fbq !== "undefined") {
-      fbq('track', eventName, {}, {
+      fbq("track", eventName, {}, {
         eventID: payload.event_id
       });
     }
@@ -234,14 +250,24 @@ Error generating stack: `+l.message+`
   }
 
   window.trackAPI = {
-    pageView: () => sendEvent("PageView"),
-    viewContent: () => sendEvent("ViewContent"),
-    initiateCheckout: () => sendEvent("InitiateCheckout"),
-    getExternalId: getOrCreateExternalId
+    pageView: function () {
+      // trava extra para pageview só disparar 1 vez por carregamento
+      if (window.__TRACK_PAGEVIEW_SENT__) return;
+      window.__TRACK_PAGEVIEW_SENT__ = true;
+      return sendEvent("PageView");
+    },
+    viewContent: function () {
+      return sendEvent("ViewContent");
+    },
+    initiateCheckout: function () {
+      return sendEvent("InitiateCheckout");
+    },
+    getExternalId: function () {
+      return getOrCreateExternalId();
+    }
   };
 
-  // dispara pageview
-   window.trackAPI.pageView();
+  window.trackAPI.pageView();
 })();
 </script>
     <!-- TRAQUEAMENTO CLOUDFLARE END -->
