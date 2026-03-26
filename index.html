@@ -11,6 +11,24 @@
     href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"
     rel="stylesheet" />
 
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1828423934537006');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1828423934537006&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
+  
   <!-- VTurb Optimizations -->
   <script>!function (i, n) { i._plt = i._plt || (n && n.timeOrigin ? n.timeOrigin + n.now() : Date.now()) }(window, performance);</script>
   <link rel="preload"
@@ -123,6 +141,159 @@ Error generating stack: `+l.message+`
       }
     }, 500);
   </script>
+  
+  <!-- TRAQUEAMENTO CLOUDFLARE -->
+  <script>
+(function () {
+  const TRACK_ENDPOINT = "https://track.api.edicaoexpress.site";
+
+  function getCookie(name) {
+    const match = document.cookie.match(
+      new RegExp("(^|; )" + name.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&") + "=([^;]*)")
+    );
+    return match ? decodeURIComponent(match[2]) : null;
+  }
+
+  function setCookie(name, value, days) {
+    const expires = new Date(Date.now() + days * 86400000).toUTCString();
+    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+  }
+
+  function getParam(name) {
+    return new URLSearchParams(window.location.search).get(name);
+  }
+
+  function generateExternalId() {
+    if (crypto.randomUUID) {
+      return "ext_" + crypto.randomUUID().replace(/-/g, "");
+    }
+    return "ext_" + Math.random().toString(36).slice(2) + Date.now();
+  }
+
+  function getOrCreateExternalId() {
+    let id = localStorage.getItem("external_id");
+    if (!id) {
+      id = generateExternalId();
+      localStorage.setItem("external_id", id);
+    }
+    return id;
+  }
+
+  function getOrCreateFbc() {
+    let fbc = getCookie("_fbc");
+    const fbclid = getParam("fbclid");
+
+    if (!fbc && fbclid) {
+      fbc = `fb.1.${Date.now()}.${fbclid}`;
+      setCookie("_fbc", fbc, 90);
+    }
+
+    return fbc;
+  }
+
+  function buildPayload(eventName) {
+    const externalId = getOrCreateExternalId();
+
+    return {
+      event_name: eventName,
+      event_id: externalId + "_" + eventName,
+      external_id: externalId,
+      sck: externalId,
+      fbp: getCookie("_fbp"),
+      fbc: getOrCreateFbc(),
+      utm_source: getParam("utm_source"),
+      utm_medium: getParam("utm_medium"),
+      utm_campaign: getParam("utm_campaign"),
+      utm_content: getParam("utm_content"),
+      utm_term: getParam("utm_term"),
+      src: getParam("src"),
+      page_url: window.location.href,
+      referrer: document.referrer || null
+    };
+  }
+
+  async function sendEvent(eventName) {
+    const payload = buildPayload(eventName);
+
+    // ENVIA PRO SEU BACKEND
+    fetch(TRACK_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    // ENVIA PRO PIXEL (DEDUPE)
+    if (typeof fbq !== "undefined") {
+      fbq('track', eventName, {}, {
+        eventID: payload.event_id
+      });
+    }
+
+    console.log("Evento enviado:", eventName, payload);
+  }
+
+  window.trackAPI = {
+    pageView: () => sendEvent("PageView"),
+    viewContent: () => sendEvent("ViewContent"),
+    initiateCheckout: () => sendEvent("InitiateCheckout"),
+    getExternalId: getOrCreateExternalId
+  };
+
+  // dispara pageview
+  window.trackAPI.pageView();
+})();
+</script>
+    <!-- TRAQUEAMENTO CLOUDFLARE END -->
+
+    <!-- ENVIO UTM KIWIFY -->
+  <script>
+(function () {
+
+  function enrichUrl(url, externalId) {
+    const u = new URL(url);
+    u.searchParams.set("sck", externalId);
+
+    const params = new URLSearchParams(window.location.search);
+
+    ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "src"]
+      .forEach(k => {
+        const v = params.get(k);
+        if (v) u.searchParams.set(k, v);
+      });
+
+    return u.toString();
+  }
+
+  document.addEventListener("click", function (e) {
+    let el = e.target;
+
+    while (el && el !== document) {
+      if (el.href && el.href.includes("pay.kiwify.com.br")) {
+
+        e.preventDefault();
+
+        const id = window.trackAPI.getExternalId();
+
+        window.trackAPI.initiateCheckout();
+
+        const url = enrichUrl(el.href, id);
+
+        setTimeout(() => {
+          window.location.href = url;
+        }, 150);
+
+        return;
+      }
+      el = el.parentElement;
+    }
+  });
+
+})();
+</script>
+    <!-- ENVIO UTM KIWIFY END -->
+
 </body>
 
 </html>
