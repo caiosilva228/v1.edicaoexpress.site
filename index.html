@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 
@@ -142,13 +143,13 @@ Error generating stack: `+l.message+`
   </script>
   
   <!-- TRAQUEAMENTO CLOUDFLARE -->
-<script>
+  <script>
 (function () {
   const TRACK_ENDPOINT = "https://track.api.edicaoexpress.site";
 
   function getCookie(name) {
     const match = document.cookie.match(
-      new RegExp("(^|; )" + name.replace(/[-[\]{}()*+?.\\^$|#\s]/g, "\\$&") + "=([^;]*)")
+      new RegExp("(^|; )" + name.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&") + "=([^;]*)")
     );
     return match ? decodeURIComponent(match[2]) : null;
   }
@@ -190,19 +191,12 @@ Error generating stack: `+l.message+`
     return fbc;
   }
 
-  function generateEventId(eventName) {
-    if (crypto.randomUUID) {
-      return eventName.toLowerCase() + "_" + crypto.randomUUID().replace(/-/g, "");
-    }
-    return eventName.toLowerCase() + "_" + Math.random().toString(36).slice(2) + Date.now();
-  }
-
   function buildPayload(eventName) {
     const externalId = getOrCreateExternalId();
 
     return {
       event_name: eventName,
-      event_id: generateEventId(eventName),
+      event_id: externalId + "_" + eventName,
       external_id: externalId,
       sck: externalId,
       fbp: getCookie("_fbp"),
@@ -221,16 +215,18 @@ Error generating stack: `+l.message+`
   async function sendEvent(eventName) {
     const payload = buildPayload(eventName);
 
+    // ENVIA PRO SEU BACKEND
     fetch(TRACK_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify(payload)
-    }).catch(console.error);
+    });
 
+    // ENVIA PRO PIXEL (DEDUPE)
     if (typeof fbq !== "undefined") {
-      fbq("track", eventName, {}, {
+      fbq('track', eventName, {}, {
         eventID: payload.event_id
       });
     }
@@ -239,28 +235,17 @@ Error generating stack: `+l.message+`
   }
 
   window.trackAPI = {
-    pageView: () => {
-      const pageKey = "pv_sent_" + window.location.pathname + window.location.search;
-
-      if (window.__PAGEVIEW_SENT__ || sessionStorage.getItem(pageKey)) {
-        console.log("PageView bloqueado: já enviado nesta página");
-        return;
-      }
-
-      window.__PAGEVIEW_SENT__ = true;
-      sessionStorage.setItem(pageKey, "1");
-
-      return sendEvent("PageView");
-    },
+    pageView: () => sendEvent("PageView"),
     viewContent: () => sendEvent("ViewContent"),
     initiateCheckout: () => sendEvent("InitiateCheckout"),
     getExternalId: getOrCreateExternalId
   };
 
-  window.trackAPI.pageView();
+  // dispara pageview
+   window.trackAPI.pageView();
 })();
 </script>
-  <!-- TRAQUEAMENTO CLOUDFLARE END -->
+    <!-- TRAQUEAMENTO CLOUDFLARE END -->
 
     <!-- ENVIO UTM KIWIFY -->
   <script>
