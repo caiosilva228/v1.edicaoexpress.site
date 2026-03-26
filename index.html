@@ -240,16 +240,13 @@ Error generating stack: `+l.message+`
 
   window.trackAPI = {
     pageView: () => {
-      const pageKey = "pv_sent_" + window.location.pathname + window.location.search;
-
-      if (window.__PAGEVIEW_SENT__ || sessionStorage.getItem(pageKey)) {
-        console.log("PageView bloqueado: já enviado nesta página");
+      // Bloqueia apenas se for chamado mais de uma vez no mesmo carregamento de página
+      if (window.__PAGEVIEW_SENT__) {
+        console.log("PageView bloqueado: já enviado neste carregamento");
         return;
       }
 
       window.__PAGEVIEW_SENT__ = true;
-      sessionStorage.setItem(pageKey, "1");
-
       return sendEvent("PageView");
     },
     viewContent: () => sendEvent("ViewContent"),
@@ -257,6 +254,7 @@ Error generating stack: `+l.message+`
     getExternalId: getOrCreateExternalId
   };
 
+  // Dispara o PageView inicial
   window.trackAPI.pageView();
 })();
 </script>
@@ -313,9 +311,8 @@ Error generating stack: `+l.message+`
   <script>
 (function () {
   function sendViewContentOnce() {
-    const key = "vc_sent_" + window.location.pathname + window.location.search;
-
-    if (window.__VIEWCONTENT_SENT__ || sessionStorage.getItem(key)) {
+    // Aborta imediatamente se já tiver sido enviado na sessão atual da página
+    if (window.__VIEWCONTENT_SENT__) {
       return;
     }
 
@@ -329,14 +326,14 @@ Error generating stack: `+l.message+`
     const scrolledPercent = ((scrollTop + windowHeight) / docHeight) * 100;
 
     if (scrolledPercent >= 35) {
+      // Marca como enviado
       window.__VIEWCONTENT_SENT__ = true;
-      sessionStorage.setItem(key, "1");
 
       if (window.trackAPI && typeof window.trackAPI.viewContent === "function") {
         window.trackAPI.viewContent();
-        console.log("ViewContent enviado");
       }
 
+      // Remove o listener para economizar memória após o envio
       window.removeEventListener("scroll", sendViewContentOnce);
     }
   }
