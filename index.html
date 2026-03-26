@@ -309,6 +309,44 @@ Error generating stack: `+l.message+`
 </script>
     <!-- ENVIO UTM KIWIFY END -->
 
+      <!-- view_content scroll -->
+  <script>
+(function () {
+  function sendViewContentOnce() {
+    const key = "vc_sent_" + window.location.pathname + window.location.search;
+
+    if (window.__VIEWCONTENT_SENT__ || sessionStorage.getItem(key)) {
+      return;
+    }
+
+    const scrollTop = window.scrollY || window.pageYOffset;
+    const windowHeight = window.innerHeight;
+    const docHeight = Math.max(
+      document.body.scrollHeight,
+      document.documentElement.scrollHeight
+    );
+
+    const scrolledPercent = ((scrollTop + windowHeight) / docHeight) * 100;
+
+    if (scrolledPercent >= 35) {
+      window.__VIEWCONTENT_SENT__ = true;
+      sessionStorage.setItem(key, "1");
+
+      if (window.trackAPI && typeof window.trackAPI.viewContent === "function") {
+        window.trackAPI.viewContent();
+        console.log("ViewContent enviado");
+      }
+
+      window.removeEventListener("scroll", sendViewContentOnce);
+    }
+  }
+
+  window.addEventListener("scroll", sendViewContentOnce, { passive: true });
+})();
+</script>
+
+  <!-- view_content scroll -->
+    
 </body>
 
 </html>
